@@ -25,7 +25,9 @@ CORE_SRCS = $(SRC_DIR)/device.c \
             $(SRC_DIR)/buffer.c \
             $(SRC_DIR)/capture.c \
             $(SRC_DIR)/format.c \
-            $(SRC_DIR)/profiles/profile_loader.c
+            $(SRC_DIR)/profiles/profile_loader.c \
+            $(SRC_DIR)/policy/dsmil_bridge.c \
+            $(SRC_DIR)/metadata.c
 
 RUNTIME_SRCS = $(SRC_DIR)/runtime/event_buffer.c
 
@@ -51,10 +53,14 @@ ifeq ($(DSLLVM),1)
     CFLAGS += -mdsv4l2-mission=$(MISSION)
 endif
 
-# Targets
-.PHONY: all clean libs core runtime test install
+# CLI tool
+CLI_BIN = bin/dsv4l2
+CLI_SRC = $(SRC_DIR)/cli/main.c
 
-all: libs
+# Targets
+.PHONY: all clean libs core runtime test install cli
+
+all: libs cli
 
 libs: core runtime
 
@@ -66,7 +72,7 @@ runtime: $(RUNTIME_LIB)
 $(BUILD_DIR) $(LIB_DIR):
 	@mkdir -p $@
 
-$(BUILD_DIR)/runtime $(BUILD_DIR)/profiles:
+$(BUILD_DIR)/runtime $(BUILD_DIR)/profiles $(BUILD_DIR)/policy:
 	@mkdir -p $@
 
 # Build core library (static)
@@ -85,9 +91,19 @@ $(RUNTIME_LIB): $(RUNTIME_OBJS) | $(LIB_DIR)
 	@ar rcs $@ $^
 
 # Compile source files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR) $(BUILD_DIR)/runtime $(BUILD_DIR)/profiles
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR) $(BUILD_DIR)/runtime $(BUILD_DIR)/profiles $(BUILD_DIR)/policy
 	@echo "CC $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Build CLI tool
+cli: $(CLI_BIN)
+
+$(CLI_BIN): $(CLI_SRC) libs | bin
+	@echo "CC $@"
+	@$(CC) $(CFLAGS) $(CLI_SRC) -L$(LIB_DIR) -ldsv4l2 -ldsv4l2rt $(LDFLAGS) -o $@
+
+bin:
+	@mkdir -p bin
 
 # Test programs
 test: libs
@@ -97,7 +113,7 @@ test: libs
 # Clean
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -rf $(BUILD_DIR) $(LIB_DIR)
+	@rm -rf $(BUILD_DIR) $(LIB_DIR) bin
 	@$(MAKE) -C $(TEST_DIR) clean 2>/dev/null || true
 
 # Install
