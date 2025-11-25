@@ -19,6 +19,10 @@ tests/test_*
 coverage_html/
 *.info
 
+# Fuzzing data
+fuzz/findings/
+fuzz/fuzz_klv_parser
+
 # Python
 __pycache__/
 *.py[cod]

@@ -79,7 +79,7 @@ CLI_BIN = bin/dsv4l2
 CLI_SRC = $(SRC_DIR)/cli/main.c
 
 # Targets
-.PHONY: all clean libs core runtime test install cli coverage coverage-clean coverage-report
+.PHONY: all clean libs core runtime test install cli coverage coverage-clean coverage-report fuzz fuzz-run fuzz-clean
 
 all: libs cli
 
@@ -173,6 +173,36 @@ coverage-report: coverage
 	@genhtml coverage_html/coverage.info --output-directory coverage_html --branch-coverage
 	@echo "Coverage report generated in coverage_html/index.html"
 
+# Fuzzing with AFL
+.PHONY: fuzz fuzz-run fuzz-clean
+
+fuzz:
+	@echo "Building fuzzing harness with AFL..."
+	@if ! command -v afl-gcc &> /dev/null; then \
+		echo "Error: AFL not installed. Install with:"; \
+		echo "  Ubuntu/Debian: sudo apt-get install afl++"; \
+		echo "  Or build from source: https://github.com/AFLplusplus/AFLplusplus"; \
+		exit 1; \
+	fi
+	@$(MAKE) clean
+	@CC=afl-gcc $(MAKE) STATIC_LIB
+	@echo "CC fuzz/fuzz_klv_parser.c"
+	@afl-gcc -I$(INC_DIR) -O2 -g fuzz/fuzz_klv_parser.c -L$(LIB_DIR) -ldsv4l2 -o fuzz/fuzz_klv_parser
+
+fuzz-run: fuzz
+	@echo "Starting AFL fuzzing session..."
+	@echo "Input seeds: fuzz/seeds/"
+	@echo "Output: fuzz/findings/"
+	@echo ""
+	@echo "Press Ctrl+C to stop fuzzing"
+	@echo ""
+	@mkdir -p fuzz/findings
+	@afl-fuzz -i fuzz/seeds -o fuzz/findings -- ./fuzz/fuzz_klv_parser
+
+fuzz-clean:
+	@echo "Cleaning fuzzing artifacts..."
+	@rm -rf fuzz/findings fuzz/fuzz_klv_parser
+
 # Help
 help:
 	@echo "DSV4L2 Build System"
@@ -188,6 +218,9 @@ help:
 	@echo "  coverage        - Build with coverage and run tests"
 	@echo "  coverage-report - Generate HTML coverage report"
 	@echo "  coverage-clean  - Remove coverage data files"
+	@echo "  fuzz            - Build AFL fuzzing harness"
+	@echo "  fuzz-run        - Run AFL fuzzing session"
+	@echo "  fuzz-clean      - Remove fuzzing artifacts"
 	@echo ""
 	@echo "Standard build:"
 	@echo "  make"
@@ -200,6 +233,9 @@ help:
 	@echo ""
 	@echo "Coverage analysis:"
 	@echo "  make coverage-report"
+	@echo ""
+	@echo "Fuzzing with AFL:"
+	@echo "  make fuzz-run"
 	@echo ""
 	@echo "Variables:"
 	@echo "  CC        - Compiler (default: gcc)"
