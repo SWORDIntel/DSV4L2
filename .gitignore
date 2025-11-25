@@ -1,6 +1,7 @@
 # Build artifacts
 build/
 lib/
+bin/
 *.o
 *.a
 *.so
@@ -10,6 +11,24 @@ lib/
 tests/test_basic
 tests/test_*
 !tests/test_*.c
+
+# Coverage data
+*.gcda
+*.gcno
+*.gcov
+coverage_html/
+*.info
+
+# Fuzzing data
+fuzz/findings/
+fuzz/fuzz_klv_parser
+fuzz/findings_ai/
+fuzz/fuzz_ai_guided
+fuzz/feedback.json
+
+# Performance data
+perf/benchmark
+perf/current.json
 
 # Python
 __pycache__/
