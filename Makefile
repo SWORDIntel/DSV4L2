@@ -10,6 +10,10 @@ DSLLVM ?= 0
 # Set to 1 to enable TPM2-TSS integration: make HAVE_TPM2=1
 HAVE_TPM2 ?= 0
 
+# Optional coverage analysis
+# Set to 1 to enable gcov coverage: make COVERAGE=1
+COVERAGE ?= 0
+
 # Directories
 SRC_DIR = src
 INC_DIR = include
@@ -64,12 +68,18 @@ ifeq ($(HAVE_TPM2),1)
     LDFLAGS += -ltss2-esys -ltss2-rc -ltss2-mu -lcrypto
 endif
 
+# Coverage flags (if enabled)
+ifeq ($(COVERAGE),1)
+    CFLAGS += --coverage -fprofile-arcs -ftest-coverage
+    LDFLAGS += --coverage -lgcov
+endif
+
 # CLI tool
 CLI_BIN = bin/dsv4l2
 CLI_SRC = $(SRC_DIR)/cli/main.c
 
 # Targets
-.PHONY: all clean libs core runtime test install cli
+.PHONY: all clean libs core runtime test install cli coverage coverage-clean coverage-report
 
 all: libs cli
 
@@ -138,18 +148,46 @@ install: libs
 	@install -m 644 $(INC_DIR)/*.h /usr/local/include/dsv4l2/
 	@ldconfig
 
+# Coverage analysis
+.PHONY: coverage coverage-clean coverage-report
+
+coverage:
+	@echo "Building with coverage instrumentation..."
+	@$(MAKE) clean
+	@$(MAKE) COVERAGE=1 all test
+	@echo "Running tests..."
+	@./scripts/run_coverage.sh
+
+coverage-clean:
+	@echo "Cleaning coverage data..."
+	@find . -name "*.gcda" -delete
+	@find . -name "*.gcno" -delete
+	@find . -name "*.gcov" -delete
+	@rm -rf coverage_html
+
+coverage-report: coverage
+	@echo "Generating HTML coverage report..."
+	@mkdir -p coverage_html
+	@lcov --capture --directory . --output-file coverage_html/coverage.info --rc lcov_branch_coverage=1
+	@lcov --remove coverage_html/coverage.info '/usr/*' --output-file coverage_html/coverage.info
+	@genhtml coverage_html/coverage.info --output-directory coverage_html --branch-coverage
+	@echo "Coverage report generated in coverage_html/index.html"
+
 # Help
 help:
 	@echo "DSV4L2 Build System"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all        - Build core and runtime libraries (default)"
-	@echo "  libs       - Same as all"
-	@echo "  core       - Build core library only"
-	@echo "  runtime    - Build runtime library only"
-	@echo "  test       - Build test programs"
-	@echo "  clean      - Remove build artifacts"
-	@echo "  install    - Install to /usr/local"
+	@echo "  all             - Build core and runtime libraries (default)"
+	@echo "  libs            - Same as all"
+	@echo "  core            - Build core library only"
+	@echo "  runtime         - Build runtime library only"
+	@echo "  test            - Build test programs"
+	@echo "  clean           - Remove build artifacts"
+	@echo "  install         - Install to /usr/local"
+	@echo "  coverage        - Build with coverage and run tests"
+	@echo "  coverage-report - Generate HTML coverage report"
+	@echo "  coverage-clean  - Remove coverage data files"
 	@echo ""
 	@echo "Standard build:"
 	@echo "  make"
@@ -160,9 +198,13 @@ help:
 	@echo "TPM2 hardware build:"
 	@echo "  make HAVE_TPM2=1"
 	@echo ""
+	@echo "Coverage analysis:"
+	@echo "  make coverage-report"
+	@echo ""
 	@echo "Variables:"
 	@echo "  CC        - Compiler (default: gcc)"
 	@echo "  DSLLVM    - Enable DSLLVM (0 or 1, default: 0)"
 	@echo "  HAVE_TPM2 - Enable TPM2-TSS hardware support (0 or 1, default: 0)"
+	@echo "  COVERAGE  - Enable gcov/lcov coverage (0 or 1, default: 0)"
 	@echo "  PROFILE   - Instrumentation profile (off|ops|exercise|forensic, default: ops)"
 	@echo "  MISSION   - Mission context tag (default: dev)"

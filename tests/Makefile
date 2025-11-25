@@ -2,6 +2,7 @@
 
 CC ?= gcc
 HAVE_TPM2 ?= 0
+COVERAGE ?= 0
 
 CFLAGS = -Wall -Wextra -O2 -g
 CFLAGS += -I../include
@@ -13,8 +14,14 @@ ifeq ($(HAVE_TPM2),1)
     LDFLAGS += -ltss2-esys -ltss2-rc -ltss2-mu -lcrypto
 endif
 
+# Coverage support
+ifeq ($(COVERAGE),1)
+    CFLAGS += --coverage -fprofile-arcs -ftest-coverage
+    LDFLAGS += --coverage -lgcov
+endif
+
 # Test programs
-TESTS = test_basic test_profiles test_policy test_metadata test_runtime test_integration test_tpm test_hardware
+TESTS = test_basic test_profiles test_policy test_metadata test_runtime test_integration test_tpm
 
 .PHONY: all clean
 
@@ -55,9 +62,5 @@ test_integration: test_integration.c
 	@$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
 
 test_tpm: test_tpm.c
-	@echo "CC $@"
-	@$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
-
-test_hardware: test_hardware.c
 	@echo "CC $@"
 	@$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@

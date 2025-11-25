@@ -12,6 +12,13 @@ tests/test_basic
 tests/test_*
 !tests/test_*.c
 
+# Coverage data
+*.gcda
+*.gcno
+*.gcov
+coverage_html/
+*.info
+
 # Python
 __pycache__/
 *.py[cod]
