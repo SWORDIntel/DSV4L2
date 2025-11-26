@@ -13,9 +13,10 @@ extern "C" {
 #define DSV4L2_MAX_CONTROLS 32
 
 /* Forward declarations */
-typedef struct dsv4l2_device dsv4l2_device_t;
+/* Note: dsv4l2_device_t is defined in dsv4l2_annotations.h */
 typedef struct dsv4l2_profile dsv4l2_profile_t;
 typedef struct dsv4l2_meta_handle dsv4l2_meta_handle_t;
+struct v4l2_queryctrl;
 
 /**
  * Device profile structure
@@ -62,11 +63,20 @@ struct dsv4l2_profile {
 };
 
 /**
- * Device handle
+ * Extended device information (internal use)
+ * Base dsv4l2_device_t is defined in dsv4l2_annotations.h
+ * This extends it with internal state
  */
-struct dsv4l2_device {
-    int fd;                                 /* v4l2 device fd */
-    char dev_path[256];
+typedef struct dsv4l2_device_ex {
+    /* Public fields (match dsv4l2_device_t) */
+    int fd;
+    const char *dev_path;
+    const char *role;
+    uint32_t layer;
+
+    /* Extended fields (internal) */
+    char dev_path_buf[256];                 /* Buffer for dev_path */
+    char role_buf[32];                      /* Buffer for role */
     dsv4l2_profile_t *profile;              /* Loaded profile */
 
     /* Current state */
@@ -83,7 +93,7 @@ struct dsv4l2_device {
 
     /* Runtime */
     int streaming;
-};
+} dsv4l2_device_ex_t;
 
 /**
  * Frame buffer (generic)
@@ -212,6 +222,49 @@ int dsv4l2_get_info(
     char *card,
     char *bus_info
 );
+
+/**
+ * Get a control value
+ *
+ * @param dev Device handle
+ * @param control_id V4L2 control ID
+ * @param value Output value
+ * @return 0 on success, negative error code on failure
+ */
+int dsv4l2_get_control(dsv4l2_device_t *dev, uint32_t control_id, int32_t *value);
+
+/**
+ * Set a control value
+ *
+ * @param dev Device handle
+ * @param control_id V4L2 control ID
+ * @param value Value to set
+ * @return 0 on success, negative error code on failure
+ */
+int dsv4l2_set_control(dsv4l2_device_t *dev, uint32_t control_id, int32_t value);
+
+/**
+ * Enumerate all controls
+ *
+ * @param dev Device handle
+ * @param callback Callback function for each control
+ * @param user_data User data passed to callback
+ * @return 0 on success, negative error code on failure
+ */
+int dsv4l2_enum_controls(
+    dsv4l2_device_t *dev,
+    int (*callback)(const struct v4l2_queryctrl *qctrl, void *user_data),
+    void *user_data
+);
+
+/**
+ * Convert control name to ID
+ *
+ * @param name Control name
+ * @param out_id Output control ID
+ * @return 0 on success, -ENOENT if not found
+ */
+int dsv4l2_control_name_to_id(const char *name, uint32_t *out_id);
 
 #ifdef __cplusplus
 }

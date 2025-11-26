@@ -3,8 +3,8 @@
 
 CC = gcc
 AR = ar
-CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude -I../include
-LDFLAGS = -pthread
+CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude -I../include $(shell pkg-config --cflags yaml-0.1)
+LDFLAGS = -pthread $(shell pkg-config --libs yaml-0.1)
 
 # DSLLVM support (optional)
 ifdef DSLLVM_ENABLED
